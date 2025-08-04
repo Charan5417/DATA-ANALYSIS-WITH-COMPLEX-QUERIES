@@ -1,0 +1,62 @@
+ USING SQl QUERIES TRENDS OR PATTERNS.
+WITH MonthlySales AS (
+    SELECT
+        DATE_TRUNC('month', sale_date) AS sale_month,
+        COUNT(DISTINCT customer_id) AS unique_customers,
+        SUM(amount) AS total_sales
+    FROM Sales
+    GROUP BY DATE_TRUNC('month', sale_date)
+)
+SELECT * FROM MonthlySales
+ORDER BY sale_month;
+
+SELECT
+    sale_id,
+    sale_date,
+    amount,
+    SUM(amount) OVER (ORDER BY sale_date) AS running_total
+FROM Sales;
+
+SELECT *
+FROM (
+    SELECT
+        sale_id,
+        customer_id,
+        sale_date,
+        amount,
+        DATE_TRUNC('month', sale_date) AS sale_month,
+        RANK() OVER (PARTITION BY DATE_TRUNC('month', sale_date) ORDER BY amount DESC) AS rank
+    FROM Sales
+) ranked_sales
+WHERE rank = 1;
+
+PATTERN
+SELECT DISTINCT customer_id
+FROM Sales
+WHERE amount > (
+    SELECT AVG(amount) FROM Sales
+);
+
+SELECT DISTINCT customer_id
+FROM Sales
+WHERE amount > (
+    SELECT AVG(amount) FROM Sales
+);
+
+WITH MonthlyTotals AS (
+    SELECT
+        DATE_TRUNC('month', sale_date) AS sale_month,
+        SUM(amount) AS monthly_sales
+    FROM Sales
+    GROUP BY DATE_TRUNC('month', sale_date)
+),
+SalesWithGrowth AS (
+    SELECT *,
+        LAG(monthly_sales) OVER (ORDER BY sale_month) AS prev_month_sales
+    FROM MonthlyTotals
+)
+SELECT *,
+    ROUND(((monthly_sales - prev_month_sales) / prev_month_sales) * 100, 2) AS growth_percent
+FROM SalesWithGrowth;
+
+
